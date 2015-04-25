@@ -1,5 +1,6 @@
 package me.pogostick29dev.banmanagement;
 
+import com.eclipsesource.json.JsonObject;
 import com.evilmidget38.NameFetcher;
 import com.evilmidget38.UUIDFetcher;
 import org.bukkit.Bukkit;
@@ -12,7 +13,10 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -144,7 +148,7 @@ public class BanManagement extends JavaPlugin implements Listener {
 
         else if (cmd.getName().equalsIgnoreCase("checkban")) {
             try {
-                HttpURLConnection connection = connect("checkban", "uuid=" + uuid);
+                HttpURLConnection connection = connect("get", "uuid=" + uuid);
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 String data = in.readLine();
 
@@ -153,7 +157,18 @@ public class BanManagement extends JavaPlugin implements Listener {
                 }
 
                 else {
-                    sender.sendMessage(ChatColor.GREEN + data);
+                    if (data.equals("[]")) {
+                        sender.sendMessage(ChatColor.RED + "No ban found.");
+                    }
+
+                    else {
+                        JsonObject jsonObject = JsonObject.readFrom(data);
+
+                        sender.sendMessage(ChatColor.GREEN + "Ban ID: " + jsonObject.getString("id", "null"));
+                        sender.sendMessage(ChatColor.GREEN + "UUID: " + jsonObject.getString("uuid", "null"));
+                        sender.sendMessage(ChatColor.GREEN + "Date: " + jsonObject.getString("date", "null"));
+                        sender.sendMessage(ChatColor.GREEN + "Reason: " + jsonObject.getString("reason", "null"));
+                    }
                 }
             }
 
@@ -179,6 +194,11 @@ public class BanManagement extends JavaPlugin implements Listener {
 
             if (data == null || data.equals("key")) {
                 e.disallow(PlayerLoginEvent.Result.KICK_BANNED, ChatColor.RED + "BanManagement's config file is not configured properly.");
+            }
+
+            else if (!data.equals("[]")) {
+                JsonObject jsonObject = JsonObject.readFrom(data);
+                e.disallow(PlayerLoginEvent.Result.KICK_BANNED, "You have been banned: " + ChatColor.RED + jsonObject.getString("reason", "null"));
             }
         }
 
